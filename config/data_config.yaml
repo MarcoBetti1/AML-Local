@@ -1,0 +1,14 @@
+# config/data_generation_config.yaml
+#Raw Data paths
+names_path: 'data/raw/names.txt'
+zip_codes_path: 'data/raw/zip_codes.txt'
+phone_numbers_path: 'data/raw/phone_numbers.txt'
+drivers_license_path: 'data/raw/drivers_license.txt'
+address_path: 'data/raw/addresses.txt'
+
+
+entity_storage_path: 'data/core/entity_storage/'
+entity_data_storage_path: 'data/core/entity_data_storage/'
+transactions_path: 'data/transaction_data/TransactionData.csv'
+config: 'config/config.yaml'
+data_config: 'config/data_config.yaml'
