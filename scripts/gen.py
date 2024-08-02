@@ -10,7 +10,7 @@ def generate_random_coordinates():
     lat = random.uniform(-90, 90)
     lon = random.uniform(-180, 180)
 
-    return f"{lat}-{lon}"
+    return f"{lat}{lon}"
 
 def create_compound_key(record, template):
     fields = template.split('_')
@@ -76,15 +76,15 @@ def generate_data(num_records):
                     receiver_record['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'receive', amount)
                     records.append(receiver_record)
 
-                    test1 = counterparty.copy() #bob gets 5 from jon
-                    test1['Type'] = 'Customer'
-                    test1['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'receive', amount)
-                    records.append(test1)
+                    counter_Customer = counterparty.copy() #bob gets 5 from jon
+                    counter_Customer['Type'] = 'Customer'
+                    counter_Customer['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'receive', amount)
+                    records.append(counter_Customer)
 
-                    test2 = customer.copy() # Jon sends 5 to bob
-                    test2['Type'] = 'Counter-Party'
-                    test2['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'send', amount)
-                    records.append(test2)
+                    customer_Counter = customer.copy() # Jon sends 5 to bob
+                    customer_Counter['Type'] = 'Counter-Party'
+                    customer_Counter['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'send', amount)
+                    records.append(customer_Counter)
 
                 elif transaction_type == 'buyGiftCard':
 

@@ -1,11 +1,19 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useNodesState, useEdgesState } from 'react-flow-renderer';
+import ReactFlow, { 
+  useNodesState, 
+  useEdgesState, 
+  applyNodeChanges, 
+  applyEdgeChanges 
+} from 'react-flow-renderer';
 import SearchPanel from './SearchPanel';
 import VisualizationPanel from './VisualizationPanel';
 import EntityDetails from './EntityDetails';
 import NodeInfoPopup from './NodeInfoPopup';
 import ToolBar from './ToolBar';
+import TabNavigation from './TabNavigation';
+import TimeframeSelector from './TimeframeSelector';
 import './App.css';
+import { MarkerType } from 'react-flow-renderer';
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
@@ -23,14 +31,32 @@ const MenuIcon = () => (
 
 function App() {
   const [allGroups, setAllGroups] = useState([]);
-  const [selectedGroup, setSelectedGroup] = useState(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [groupData, setGroupData] = useState(null);
+  const [openGroups, setOpenGroups] = useState([]);
+  const [activeGroupId, setActiveGroupId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedNode, setSelectedNode] = useState(null);
 
+  const [timeframe, setTimeframe] = useState({ startDate: '', endDate: '' });
+  const [appliedTimeframe, setAppliedTimeframe] = useState({ startDate: '', endDate: '' });
+
+
+  const handleNodeChanges = useCallback((changes, groupId) => {
+    setOpenGroups(prev => prev.map(group => 
+      group.id === groupId 
+        ? { ...group, nodes: applyNodeChanges(changes, group.nodes) }
+        : group
+    ));
+  }, []);
+
+  const handleEdgeChanges = useCallback((changes, groupId) => {
+    setOpenGroups(prev => prev.map(group => 
+      group.id === groupId 
+        ? { ...group, edges: applyEdgeChanges(changes, group.edges) }
+        : group
+    ));
+  }, []);
+  
   useEffect(() => {
     fetchAllGroups();
   }, []);
@@ -47,33 +73,42 @@ function App() {
   };
 
   const handleGroupSelect = useCallback(async (groupId) => {
-    setSelectedGroup(groupId);
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/groups/${groupId}/data`);
+      const queryParams = new URLSearchParams({
+        startDate: timeframe.startDate,
+        endDate: timeframe.endDate
+      }).toString();
+      const response = await fetch(`${API_BASE_URL}/groups/${groupId}/data?${queryParams}`);
       const data = await response.json();
-      setGroupData(data);
       
       if (data.graphData && Array.isArray(data.graphData.nodes) && Array.isArray(data.graphData.edges)) {
-        const newNodes = data.graphData.nodes
-          .filter(node => node && node.type)  // Ensure node and node.type exist
-          .map(node => ({
-            ...node,
-            position: getInitialNodePosition(node.type),
-          }));
+        const newNodes = data.graphData.nodes.map(node => ({
+          ...node,
+          position: getInitialNodePosition(node.type),
+        }));
 
-        const newEdges = data.graphData.edges
-          .filter(edge => edge && edge.source && edge.target)  // Ensure edge, source, and target exist
-          .map(edge => ({
-            ...edge,
-            type: 'smoothstep',
-            animated: true,
-            style: { stroke: '#888' },
-          }));
+        const newEdges = data.graphData.edges.map(edge => ({
+          ...edge,
+          type: 'smoothstep',
+          animated: true,
+          style: { stroke: '#888' },
+        }));
 
-        setNodes(newNodes);
-        setEdges(newEdges);
+        setOpenGroups(prev => {
+          const groupIndex = prev.findIndex(group => group.id === groupId);
+          if (groupIndex !== -1) {
+            // Update existing group
+            const updatedGroups = [...prev];
+            updatedGroups[groupIndex] = { id: groupId, data, nodes: newNodes, edges: newEdges };
+            return updatedGroups;
+          } else {
+            // Add new group
+            return [...prev, { id: groupId, data, nodes: newNodes, edges: newEdges }];
+          }
+        });
+        setActiveGroupId(groupId);
       } else {
         console.error('Unexpected data structure:', data);
         setError('Received unexpected data structure from the server.');
@@ -84,7 +119,14 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [setNodes, setEdges]);
+  }, [timeframe]);
+
+  const handleCloseGroup = useCallback((groupId) => {
+    setOpenGroups(prev => prev.filter(group => group.id !== groupId));
+    if (activeGroupId === groupId) {
+      setActiveGroupId(openGroups[0]?.id || null);
+    }
+  }, [activeGroupId, openGroups]);
 
   const getInitialNodePosition = (type) => {
     const centerX = 250;
@@ -96,12 +138,12 @@ function App() {
       case 'Customer':
         return { x: centerX + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) };
       case 'Counter-Party':
-        return { x: centerX + radius * 0.8 * Math.cos(angle + Math.PI), y: centerY + radius * 0.8 * Math.sin(angle + Math.PI) };
+        return { x: centerX + radius * 0.9 * Math.cos(angle + Math.PI), y: centerY + radius * 0.6 * Math.sin(angle + Math.PI) };
       case 'Business':
-        return { x: centerX + radius * 0.6 * Math.cos(angle + Math.PI/2), y: centerY + radius * 0.6 * Math.sin(angle + Math.PI/2) };
+        return { x: centerX + radius * 0.6 * Math.cos(angle + Math.PI/2), y: centerY + radius * 0.9 * Math.sin(angle + Math.PI/2) };
       case 'Transfer':
       case 'BillPay':
-        return { x: centerX + radius * 0.4 * Math.cos(angle), y: centerY + radius * 0.4 * Math.sin(angle) };
+        return { x: centerX + radius * 0.4 * Math.cos(angle), y: centerY + radius * 0.3 * Math.sin(angle) };
       default:
         return { x: centerX + radius * Math.random(), y: centerY + radius * Math.random() };
     }
@@ -111,6 +153,18 @@ function App() {
     setSelectedNode(node);
   }, []);
 
+  const applyTimeframeFilter = async () => {
+    if (!timeframe.startDate && !timeframe.endDate) {
+      alert("Please enter at least one date to apply the filter.");
+      return;
+    }
+    if (activeGroupId) {
+      await handleGroupSelect(activeGroupId);
+    }
+  };
+  
+  const activeGroup = openGroups.find(group => group.id === activeGroupId);
+  
   return (
     <div className="app-container">
       <header className="app-header">
@@ -122,28 +176,51 @@ function App() {
           <MenuIcon />
         </div>
       </header>
+      <TabNavigation 
+        openGroups={openGroups}
+        activeGroupId={activeGroupId}
+        onTabChange={setActiveGroupId}
+        onCloseTab={handleCloseGroup}
+      />
       <div className="app-content">
         <SearchPanel 
           allGroups={allGroups} 
           onGroupSelect={handleGroupSelect} 
-          selectedGroup={selectedGroup}
+          selectedGroup={activeGroupId}
         />
         {isLoading ? (
-          <div>Loading...</div>
+          <div className="loading-indicator">Loading...</div>
         ) : error ? (
           <div className="error-message">{error}</div>
-        ) : (
-          <>
-            <VisualizationPanel 
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeDoubleClick={handleNodeDoubleClick}
-            />
+        ) : activeGroup ? (
+          <div className="active-group-content">
+            <div className="timeframe-selector-container">
+              <TimeframeSelector
+                startDate={timeframe.startDate}
+                endDate={timeframe.endDate}
+                onStartDateChange={(date) => setTimeframe(prev => ({ ...prev, startDate: date }))}
+                onEndDateChange={(date) => setTimeframe(prev => ({ ...prev, endDate: date }))}
+                onApplyFilter={applyTimeframeFilter}
+              />
+            </div>
+            <div className="visualization-container">
+              <VisualizationPanel 
+                nodes={activeGroup.nodes}
+                edges={activeGroup.edges}
+                onNodesChange={(changes) => handleNodeChanges(changes, activeGroupId)}
+                onEdgesChange={(changes) => handleEdgeChanges(changes, activeGroupId)}
+                onNodeDoubleClick={handleNodeDoubleClick}
+              />
+            </div>
             <ToolBar />
-            <EntityDetails groupData={groupData} />
-          </>
+            <div className="entity-details-container">
+              <EntityDetails 
+                groupData={activeGroup.data} 
+                />
+            </div>
+          </div>
+        ) : (
+          <div className="no-group-selected">Select a group to view details</div>
         )}
       </div>
       {selectedNode && (
@@ -151,6 +228,9 @@ function App() {
       )}
     </div>
   );
+  
+  
+  
 }
 
 export default App;

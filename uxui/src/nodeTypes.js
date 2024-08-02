@@ -9,6 +9,7 @@ const nodeIcons = {
   BillPay: '/icons/transfer.png',
   PhoneNumber: '/icons/phone.png',
   Address: '/icons/house.png',
+  GiftCard:'/icons/giftCard.png',
 };
 
 const BaseNode = ({ type, data, isConnectable }) => (
@@ -66,6 +67,7 @@ const nodeTypes = {
   Business: (props) => <BaseNode {...props} type="Business" />,
   Transfer: (props) => <BaseNode {...props} type="Transfer" />,
   BillPay: (props) => <BaseNode {...props} type="BillPay" />,
+  GiftCard: (props) => <BaseNode {...props} type="GiftCard" />,
   PhoneNumber: (props) => <BaseNode {...props} type="PhoneNumber" />,
   Address: (props) => <BaseNode {...props} type="Address" />,
 };

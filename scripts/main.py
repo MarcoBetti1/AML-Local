@@ -93,18 +93,20 @@ def process_counter_party(all_data):
 
         customer_id = transaction_parts[3] # This is the other party associated with the transaction
         print(customer_id)
+        grouped_entities = load_existing() # load existing groups
+        link_id = find_party(entity_id,grouped_entities) #Find link
+        entity_data.append(link_id)
+        group_id = find_party(customer_id,grouped_entities) # Find the group and add it
+        grouped_entities[group_id].append(entity_data) # add the counterparty
+        save_entity_file(group_id, grouped_entities[group_id]) # Save group file
+        
 
-        find_party(entity_data,customer_id) # Find the group and add it
-
-def find_party(counter_party,og_party_id):
-    grouped_entities = load_existing() # load existing groups
+def find_party(og_party_id,grouped_entities):
 
     for group_id, group_data in grouped_entities.items(): 
             if any(member[0] == 'Customer' and member[1] == og_party_id for member in group_data): # Make sure there is a customer with a matching ID
-                grouped_entities[group_id].append(counter_party) # add the counterparty
+                return group_id
 
-                save_entity_file(group_id, grouped_entities[group_id]) # Save group file
-                break
 
 def run_matching(input_data):
     existing_groups = load_existing() # load groups to start

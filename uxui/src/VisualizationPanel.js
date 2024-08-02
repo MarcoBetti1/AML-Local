@@ -25,7 +25,18 @@ function VisualizationPanel({ nodes, edges, onNodesChange, onEdgesChange, onNode
       if ((sourceNode.type === 'Customer' || targetNode.type === 'Customer') &&
           (sourceNode.type === 'Transfer' || targetNode.type === 'BillPay' || 
            targetNode.type === 'Transfer' || targetNode.type === 'BillPay')) {
-        label = `${sourceNode.type} → ${targetNode.type}`;
+        
+        const transactionNode = sourceNode.type === 'Transfer' || sourceNode.type === 'BillPay' ? sourceNode : targetNode;
+        const customerNode = sourceNode.type === 'Customer' ? sourceNode : targetNode;
+        
+        if (transactionNode.data && transactionNode.data.info) {
+          const transactionType = transactionNode.data.info.type;
+          if (transactionType === 'send' || transactionType === 'receive') {
+            label = `Customer ${transactionType === 'send' ? 'sends' : 'receives'}`;
+          } else if (transactionType === 'billPay') {
+            label = `Customer billPay`;
+          }
+        }
       }
 
       return {
@@ -46,7 +57,7 @@ function VisualizationPanel({ nodes, edges, onNodesChange, onEdgesChange, onNode
   }, [edges, nodes]);
 
   return (
-    <div className="visualization-panel">
+    <div className="visualization-panel" style={{ width: '100%', height: '100%' }}>
       {nodes.length > 0 ? (
         <>
           <ReactFlow
