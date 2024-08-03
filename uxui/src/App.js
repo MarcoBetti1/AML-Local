@@ -36,7 +36,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
-
+  const [displayGroups, setDisplayGroups] = useState([]);
   const [timeframe, setTimeframe] = useState({ startDate: '', endDate: '' });
   const [appliedTimeframe, setAppliedTimeframe] = useState({ startDate: '', endDate: '' });
 
@@ -49,6 +49,24 @@ function App() {
     ));
   }, []);
 
+  const handleSearch = useCallback(async (searchTerm) => {
+    if (!searchTerm) {
+      setDisplayGroups(allGroups.map(group => ({ group, displayValue: group })));
+      return;
+    }
+  
+    try {
+      const response = await fetch(`${API_BASE_URL}/search?term=${encodeURIComponent(searchTerm)}`);
+      if (!response.ok) throw new Error('Search failed');
+      const data = await response.json();
+      setDisplayGroups(data);
+    } catch (error) {
+      console.error('Error performing search:', error);
+      setError('Failed to perform search. Please try again later.');
+    }
+  }, [allGroups]);
+
+
   const handleEdgeChanges = useCallback((changes, groupId) => {
     setOpenGroups(prev => prev.map(group => 
       group.id === groupId 
@@ -60,12 +78,19 @@ function App() {
   useEffect(() => {
     fetchAllGroups();
   }, []);
-
+  useEffect(() => {
+    if (allGroups.length > 0) {
+      setDisplayGroups(allGroups.map(group => ({ group, displayValue: group })));
+    }
+  }, [allGroups]);
+  // Modify the fetchAllGroups function:
   const fetchAllGroups = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/groups`);
       const data = await response.json();
-      setAllGroups(Array.isArray(data) ? data : []);
+      const groups = Array.isArray(data) ? data : [];
+      setAllGroups(groups);
+      setDisplayGroups(groups.map(group => ({ group, displayValue: group }))); // Initialize displayGroups
     } catch (error) {
       console.error('Failed to fetch all groups:', error);
       setError('Failed to fetch groups. Please try again later.');
@@ -154,10 +179,7 @@ function App() {
   }, []);
 
   const applyTimeframeFilter = async () => {
-    if (!timeframe.startDate && !timeframe.endDate) {
-      alert("Please enter at least one date to apply the filter.");
-      return;
-    }
+
     if (activeGroupId) {
       await handleGroupSelect(activeGroupId);
     }
@@ -183,11 +205,12 @@ function App() {
         onCloseTab={handleCloseGroup}
       />
       <div className="app-content">
-        <SearchPanel 
-          allGroups={allGroups} 
-          onGroupSelect={handleGroupSelect} 
-          selectedGroup={activeGroupId}
-        />
+      <SearchPanel 
+        displayGroups={displayGroups}
+        onGroupSelect={handleGroupSelect} 
+        selectedGroup={activeGroupId}
+        onSearch={handleSearch}
+      />
         {isLoading ? (
           <div className="loading-indicator">Loading...</div>
         ) : error ? (

@@ -63,40 +63,43 @@ def generate_data(num_records):
             for _ in range(num_transactions):
                 transaction_type = random.choice(config['transaction_types'])
                 amount = random.uniform(10, 1000)
-
+                location = 'NA'
+                if random.randint(0,1)==1:
+                    location = generate_random_coordinates()
+                daytime = f'{generate_random_date()}-{random_time()}'
                 if transaction_type in ['send', 'receive']:
                     counterparty = generate_customer_record(names, zip_codes, phone_numbers, drivers_licenses, addresses)
                     
                     sender_record = customer.copy()#Jon sends 5 to bob
-                    sender_record['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'send', amount)
+                    sender_record['Transaction'] = generate_transaction(location,daytime,customer['ID'], counterparty['ID'], 'send', amount)
                     records.append(sender_record)
 
                     receiver_record = counterparty.copy() # bob gets 5 from jon
                     receiver_record['Type'] = 'Counter-Party'
-                    receiver_record['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'receive', amount)
+                    receiver_record['Transaction'] = generate_transaction(location,daytime,customer['ID'], counterparty['ID'], 'receive', amount)
                     records.append(receiver_record)
 
                     counter_Customer = counterparty.copy() #bob gets 5 from jon
                     counter_Customer['Type'] = 'Customer'
-                    counter_Customer['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'receive', amount)
+                    counter_Customer['Transaction'] = generate_transaction(location,daytime,customer['ID'], counterparty['ID'], 'receive', amount)
                     records.append(counter_Customer)
 
                     customer_Counter = customer.copy() # Jon sends 5 to bob
                     customer_Counter['Type'] = 'Counter-Party'
-                    customer_Counter['Transaction'] = generate_transaction(customer['ID'], counterparty['ID'], 'send', amount)
+                    customer_Counter['Transaction'] = generate_transaction(location,daytime,customer['ID'], counterparty['ID'], 'send', amount)
                     records.append(customer_Counter)
 
                 elif transaction_type == 'buyGiftCard':
 
                     gift_card_record = customer.copy()
-                    gift_card_record['Transaction'] = generate_transaction(customer['ID'], None, 'buyGiftCard', amount)
+                    gift_card_record['Transaction'] = generate_transaction(location,daytime,customer['ID'], None, 'buyGiftCard', amount)
                     records.append(gift_card_record)
 
                 elif transaction_type == 'billPay':
                     
                     business_id = random.randint(10000,99999)
                     bill_pay_record = customer.copy()
-                    bill_pay_record['Transaction'] = generate_transaction(customer['ID'], business_id, 'billPay', amount)
+                    bill_pay_record['Transaction'] = generate_transaction(location,daytime,customer['ID'], business_id, 'billPay', amount)
                     records.append(bill_pay_record)
 
         return records
@@ -106,11 +109,7 @@ def random_time():
     minute = str(random.randint(0,60))
     return f'{hour}:{minute}'
 
-def generate_transaction(sender_id, receiver_id, transaction_type, amount):
-        location = 'NA'
-        if random.randint(0,1)==1:
-            location = generate_random_coordinates()
-        daytime = f'{generate_random_date()}-{random_time()}'
+def generate_transaction(location,daytime,sender_id, receiver_id, transaction_type, amount):
         if transaction_type == 'send':
             return f"{location}_{daytime}_send_{receiver_id}_{amount:.2f}"
         elif transaction_type == 'receive':

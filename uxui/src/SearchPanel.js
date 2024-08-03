@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-function SearchPanel({ allGroups, onGroupSelect }) {
+function SearchPanel({ displayGroups, onGroupSelect, selectedGroup, onSearch }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const filteredGroups = allGroups.filter(group =>
-    group.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      onSearch(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, onSearch]);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -22,19 +26,19 @@ function SearchPanel({ allGroups, onGroupSelect }) {
           <h2>Groups</h2>
           <input
             type="text"
-            placeholder="Search groups..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
           <div className="group-list">
-            {filteredGroups.map(groupId => (
+            {displayGroups && displayGroups.map(({ group, displayValue }) => (
               <div
-                key={groupId}
-                onClick={() => onGroupSelect(groupId)}
-                className="group-item"
+                key={group}
+                onClick={() => onGroupSelect(group)}
+                className={`group-item ${selectedGroup === group ? 'selected' : ''}`}
               >
-                {groupId}
+                {displayValue}
               </div>
             ))}
           </div>

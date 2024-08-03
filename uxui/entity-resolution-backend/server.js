@@ -5,11 +5,13 @@ const path = require('path');
 
 const app = express();
 const port = 3001;
-
+const csv = require('csv-parser');
+const { Readable } = require('stream');
 app.use(cors());
 app.use(express.json());
 
 const DATA_DIR = '/Users/m0b0yxy/Desktop/V1.2/data/core/entity_storage';
+const HISTORY_DIR='/Users/m0b0yxy/Desktop/V1.2/data/core/entity_data_storage'
 
   const parseTransaction = (transaction) => {
     // If it's already an object, return it as is
@@ -94,32 +96,41 @@ const readGroupData = async (filename) => {
 };
 
 const filterByTimeframe = (data, startDate, endDate) => {
-if (!startDate && !endDate) return data;
-
-const parseDate = (dateString) => {
-    const [datePart, timePart] = dateString.split('-');
-    const [month, day, year] = datePart.split('/');
-    const [hours, minutes] = timePart.split(':');
-    return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
-};
-
-const start = startDate ? new Date(startDate) : null;
-const end = endDate ? new Date(endDate) : null;
-
-return data.filter(entry => {
-    const transactionDate = parseDate(entry.transaction.timestamp);
-    if (!transactionDate) return true; // Keep entries with invalid dates
-
-    if (start && end) {
-    return transactionDate >= start && transactionDate <= end;
-    } else if (start) {
-    return transactionDate >= start;
-    } else if (end) {
-    return transactionDate <= end;
-    }
-    return true;
-});
-};
+    if (!startDate && !endDate) return data;
+  
+    const parseDate = (dateString) => {
+      if (!dateString) return null;
+      const [datePart, timePart] = dateString.split('-');
+      const [month, day, year] = datePart.split('/');
+      const [hours, minutes] = timePart.split(':');
+      return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
+    };
+  
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+  
+    return data.map(entry => {
+      if (!entry.transaction || entry.type === 'Type') {
+        return entry; // Keep entries without transactions or 'Type' entries as is
+      }
+      console.log(entry.transaction.timestamp)
+      const transactionDate = parseDate(entry.transaction.timestamp);
+      if (!transactionDate) return entry; // Keep entries with invalid dates
+  
+      if (
+        (start && transactionDate < start) ||
+        (end && transactionDate > end)
+      ) {
+        // If the transaction is outside the date range, remove the transaction but keep the entity
+        return {
+          ...entry,
+          transaction: null
+        };
+      }
+  
+      return entry; // Keep the entry as is if it's within the date range
+    });
+  };
 
 const generateGraphData = (entities, transactions) => {
     const nodes = new Map();
@@ -158,7 +169,7 @@ const generateGraphData = (entities, transactions) => {
                 displayName: `Money Transfer`
               });
               addEdge(entity.id, transferNodeId, 'transaction');
-              addEdge(targetId, transferNodeId, 'transaction');
+              addEdge(transferNodeId,targetId, 'transaction');
               addEdge(entity.id, targetId, 'direct');
               break;
             case 'billPay':
@@ -205,6 +216,7 @@ const generateGraphData = (entities, transactions) => {
       let groupData = await readGroupData(`${groupId}.csv`);
       
       // Apply timeframe filter
+      console.log(typeof(startDate),endDate)
       groupData = filterByTimeframe(groupData, startDate, endDate);
   
       const entities = {};
@@ -255,7 +267,7 @@ const generateGraphData = (entities, transactions) => {
   });
 
 app.get('/api/groups', (req, res) => {
-  fs.readdir(DATA_DIR, (err, files) => {
+  fs.readdir(HISTORY_DIR, (err, files) => {
     if (err) {
       console.error('Error reading directory:', err);
       res.status(500).json({ error: 'Failed to fetch groups' });
@@ -266,6 +278,61 @@ app.get('/api/groups', (req, res) => {
   });
 });
 
+
+app.get('/api/search', async (req, res) => {
+    const searchTerm = req.query.term.toLowerCase();
+    const results = [];
+  
+    try {
+      const files = await fs.readdir(HISTORY_DIR);
+      const csvFiles = files.filter(file => file.endsWith('.csv'));
+  
+      for (const file of csvFiles) {
+        const groupName = file.replace('.csv', '');
+        const filePath = path.join(HISTORY_DIR, file);
+        const fileContent = await fs.readFile(filePath, 'utf-8');
+        
+        const rows = await new Promise((resolve, reject) => {
+          const results = [];
+          Readable.from(fileContent)
+            .pipe(csv())
+            .on('data', (data) => results.push(data))
+            .on('end', () => resolve(results))
+            .on('error', (error) => reject(error));
+        });
+  
+        for (const row of rows) {
+          for (const [key, value] of Object.entries(row)) {
+            if (value.toLowerCase().includes(searchTerm)) {
+              results.push({
+                group: groupName,
+                displayValue: value
+              });
+              break; // Stop after finding the first match in this row
+            }
+          }
+        }
+      }
+  
+      // Sort results by relevance
+      results.sort((a, b) => {
+        const aValue = a.displayValue.toLowerCase();
+        const bValue = b.displayValue.toLowerCase();
+        if (aValue === searchTerm) return -1;
+        if (bValue === searchTerm) return 1;
+        if (aValue.startsWith(searchTerm) && !bValue.startsWith(searchTerm)) return -1;
+        if (bValue.startsWith(searchTerm) && !aValue.startsWith(searchTerm)) return 1;
+        return 0;
+      });
+  
+      res.json(results);
+    } catch (error) {
+      console.error('Error performing search:', error);
+      res.status(500).json({ error: 'Failed to perform search' });
+    }
+  });
+
+  
 app.listen(port, () => {
   console.log(`Backend server running on http://localhost:${port}`);
 });
