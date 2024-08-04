@@ -58,10 +58,23 @@ def match_entities(all_data, existing_groups):
     total_comparisons = 0 # Counting comparisons for stats, this may not be used
 
     # First, process all 'Customer' types
+    
     for entity_data in all_data:
         entity_type, entity_id, transaction, entity_key = entity_data[:4] # split row of data, used to check type
         if entity_type != 'Customer': #avoid all non customer types
             continue
+        
+        skip = False
+        print(grouped_entities)
+        for group_id, group_data in list(grouped_entities.items()): 
+            if any(member[0] == 'Customer' and member[1] == entity_id for member in group_data): # Make sure there is a customer with a matching ID
+                grouped_entities[group_id].append(entity_data)
+                save_entity_file(group_id, grouped_entities[group_id]) # save updated group file
+                save_entity_data(group_id, entity_data) # save updated historical data
+                all_data.remove(entity_data) # remove so we dont process again
+                skip = True
+        if skip:
+            continue    
         
         best_score, best_group, comparisons = group_similarity(entity_data) # find the best group if any
         total_comparisons += comparisons
@@ -80,25 +93,27 @@ def match_entities(all_data, existing_groups):
 
     # Now, process all 'Counter-Party' types
     # There shouldnt be any customers left
-    process_counter_party(all_data)
+    for entity_data in all_data:
+        process_counter_party(grouped_entities,entity_data)
 
     return grouped_entities, total_comparisons
 
-def process_counter_party(all_data):
-    for entity_data in all_data: 
-        entity_type, entity_id, transaction, entity_key = entity_data[:4] # extract data types from row
-        if entity_type != 'Counter-Party': # no customers should remain but for safety
-            continue
-        transaction_parts = transaction.split('_') # Split transaction to find counterparty of the counterparty
+def process_counter_party(grouped_entities,entity_data):
+    grouped_entities = load_existing() # load existing groups
+    entity_type, entity_id, transaction, entity_key = entity_data[:4] # extract data types from row
 
-        customer_id = transaction_parts[3] # This is the other party associated with the transaction
-        print(customer_id)
-        grouped_entities = load_existing() # load existing groups
-        link_id = find_party(entity_id,grouped_entities) #Find link
-        entity_data.append(link_id)
-        group_id = find_party(customer_id,grouped_entities) # Find the group and add it
-        grouped_entities[group_id].append(entity_data) # add the counterparty
-        save_entity_file(group_id, grouped_entities[group_id]) # Save group file
+
+    if entity_type != 'Counter-Party': # no customers should remain but for safety
+        return
+    transaction_parts = transaction.split('_') # Split transaction to find counterparty of the counterparty
+
+    customer_id = transaction_parts[3] # This is the other party associated with the transaction
+    print(customer_id)
+    link_id = find_party(entity_id,grouped_entities) #Find link
+    entity_data.append(link_id)
+    group_id = find_party(customer_id,grouped_entities) # Find the group and add it
+    grouped_entities[group_id].append(entity_data) # add the counterparty
+    save_entity_file(group_id, grouped_entities[group_id]) # Save group file
         
 
 def find_party(og_party_id,grouped_entities):
@@ -106,6 +121,7 @@ def find_party(og_party_id,grouped_entities):
     for group_id, group_data in grouped_entities.items(): 
             if any(member[0] == 'Customer' and member[1] == og_party_id for member in group_data): # Make sure there is a customer with a matching ID
                 return group_id
+    return False
 
 
 def run_matching(input_data):
@@ -134,5 +150,5 @@ if __name__ == "__main__":
     df.to_csv('data/transactions/data.csv',index=None)
     
     # Run matching
-    grouped_entities, total_comparisons = start_matching(compound_key_data)
+    grouped_entities, total_comparisons = run_matching(compound_key_data)
     print(f"Number of groups formed: {len(grouped_entities)}")

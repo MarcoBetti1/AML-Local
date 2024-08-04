@@ -28,7 +28,6 @@ export const useGroups = () => {
       const groupsWithDisplayNames = await Promise.all(
         data.map(async (groupId) => {
           const displayValue = await fetchGroupInfo(groupId);
-          console.log("TEST",displayValue)
           return { group: groupId, displayValue };
         })
 

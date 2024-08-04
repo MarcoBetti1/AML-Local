@@ -113,7 +113,6 @@ const filterByTimeframe = (data, startDate, endDate) => {
       if (!entry.transaction || entry.type === 'Type') {
         return entry; // Keep entries without transactions or 'Type' entries as is
       }
-      console.log(entry.transaction.timestamp)
       const transactionDate = parseDate(entry.transaction.timestamp);
       if (!transactionDate) return entry; // Keep entries with invalid dates
   
@@ -347,9 +346,7 @@ app.get('/api/search', async (req, res) => {
           .on('end', () => resolve(results))
           .on('error', (error) => reject(error));
       });
-      console.log(rows)
       if (rows.length >= 1) {
-        console.log("Success")
         // Get the first non-header row
         const firstDataRow = rows[0];
         const values = Object.values(firstDataRow);

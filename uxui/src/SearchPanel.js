@@ -6,9 +6,6 @@ function SearchPanel({ allGroups, displayGroups, onGroupSelect, selectedGroup, o
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    console.log('SearchPanel useEffect triggered');
-    console.log('searchTerm:', searchTerm);
-    console.log('displayGroups:', displayGroups);
     onSearch(searchTerm);
   }, [searchTerm, onSearch]);
 
