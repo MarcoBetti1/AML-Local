@@ -75,25 +75,25 @@ const parseTemplateInfo = (templateInfo) => {
 };
 
 const readGroupData = async (filename) => {
-  const filePath = path.join(DATA_DIR, filename);
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    const lines = content.trim().split('\n');
-    return lines.map(line => {
-      const [type, id, transaction, templateInfo, link] = line.split(',');
-      return {
-        type,
-        id,
-        transaction: parseTransaction(transaction),
-        info: parseTemplateInfo(templateInfo),
-        link: link || null
-      };
-    });
-  } catch (error) {
-    console.error(`Error reading file ${filename}:`, error);
-    throw new Error(`Failed to read group data from ${filename}`);
-  }
-};
+    const filePath = path.join(DATA_DIR, filename);
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      const lines = content.trim().split('\n');
+      return lines.map(line => {
+        const [type, id, transaction, templateInfo, link] = line.split(',');
+        return {
+          type,
+          id,
+          transaction: parseTransaction(transaction),
+          info: parseTemplateInfo(templateInfo),
+          link: link ? link.trim() : null
+        };
+      });
+    } catch (error) {
+      console.error(`Error reading file ${filename}:`, error);
+      throw new Error(`Failed to read group data from ${filename}`);
+    }
+  };
 
 const filterByTimeframe = (data, startDate, endDate) => {
     if (!startDate && !endDate) return data;
@@ -132,7 +132,7 @@ const filterByTimeframe = (data, startDate, endDate) => {
     });
   };
 
-const generateGraphData = (entities, transactions) => {
+  const generateGraphData = (entities, transactions) => {
     const nodes = new Map();
     const edges = new Map();
   
@@ -153,8 +153,10 @@ const generateGraphData = (entities, transactions) => {
       addNode(entity.id, entity.type, {
         label: entity.type,
         info: entity.info,
-        displayName: entity.info.FirstName || entity.id
+        displayName: entity.info.FirstName || entity.id,
+        link: entity.link
       });
+  
   
       if (entity.type === 'Customer') {
         entity.transactions.forEach(transaction => {
@@ -228,6 +230,7 @@ const generateGraphData = (entities, transactions) => {
             id: entry.id,
             type: entry.type,
             info: entry.info,
+            link: entry.link,
             transactions: []
           };
         }
@@ -352,9 +355,10 @@ app.get('/api/search', async (req, res) => {
         const values = Object.values(firstDataRow);
         const firstValue = values[0].trim();
         const secondValue = values[1].trim();
+
         // Concatenate the first two values
         const displayValue = `${firstValue} ${secondValue}`;
-        res.json({ groupId, displayValue });
+        res.json({ groupId, displayValue});
       } else {
         // If there's no data, return the group ID as the display value
         res.json({ groupId, displayValue: groupId });

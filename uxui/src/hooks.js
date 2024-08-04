@@ -6,20 +6,43 @@ export const useGroups = () => {
   const [allGroups, setAllGroups] = useState([]);
   const [displayGroups, setDisplayGroups] = useState([]);
 
+  const fetchGroupInfo = useCallback(async (groupId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/group-info/${groupId}`);
+      if (!response.ok) throw new Error('Failed to fetch group info');
+      const data = await response.json();
+      return data.displayValue;
+    } catch (error) {
+      console.error('Error fetching group info:', error);
+      return groupId; // Fallback to using the group ID if fetch fails
+    }
+  }, []);
+
   const fetchAllGroups = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/groups`);
       const data = await response.json();
       setAllGroups(data);
-      setDisplayGroups(data.map(group => ({ group, displayValue: group })));
+
+      // Fetch display names for all groups
+      const groupsWithDisplayNames = await Promise.all(
+        data.map(async (groupId) => {
+          const displayValue = await fetchGroupInfo(groupId);
+          console.log("TEST",displayValue)
+          return { group: groupId, displayValue };
+        })
+
+      );
+      setDisplayGroups(groupsWithDisplayNames);
     } catch (error) {
       console.error('Failed to fetch all groups:', error);
     }
-  }, []);
+  }, [fetchGroupInfo]);
 
   useEffect(() => {
     fetchAllGroups();
   }, [fetchAllGroups]);
+
 
   const handleSearch = useCallback(async (searchTerm) => {
     if (!searchTerm) {

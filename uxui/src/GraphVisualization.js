@@ -28,12 +28,16 @@ const getInitialNodePosition = (type) => {
   }
 };
 
-const GraphVisualization = ({ graphData, onNodeDoubleClick }) => {
-  const initialNodes = useMemo(() => graphData.nodes.map(node => ({
-    ...node,
-    position: getInitialNodePosition(node.type),
-    data: { ...node.data, displayName: node.data.label }
-  })), [graphData.nodes]);
+const GraphVisualization = ({ graphData, onNodeDoubleClick, onLinkClick }) => {
+    const initialNodes = useMemo(() => graphData.nodes.map(node => ({
+      ...node,
+      position: getInitialNodePosition(node.type),
+      data: { 
+        ...node.data,
+        displayName: node.data.label,
+        onLinkClick: node.data.link ? () => onLinkClick(node.data.link) : undefined
+      }
+    })), [graphData.nodes, onLinkClick]);
 
   const initialEdges = useMemo(() => graphData.edges.map(edge => ({
     ...edge,

@@ -24,6 +24,7 @@ const MenuIcon = () => (
   </svg>
 );
 function App() {
+
   const { displayGroups, handleSearch } = useGroups();
   const { groupData, isLoading, error, fetchGroupData } = useGroupData();
   const [activeGroupId, setActiveGroupId] = useState(null);
@@ -46,55 +47,89 @@ function App() {
       console.error('Error fetching group info:', error);
       return groupId; // Fallback to using the group ID if fetch fails
     }
+    
   }, []);
+
+  const handleLinkedGroupOpen = useCallback(async (linkId) => {
+    // Check if the linked group is already open
+    const existingGroupIndex = openGroups.findIndex(group => group.id === linkId);
+    if (existingGroupIndex !== -1) {
+      handleTabChange(linkId);
+      return;
+    }
+
+    // Fetch the linked group data
+    await fetchGroupData(linkId);
+    const groupDisplayName = await fetchGroupInfo(linkId);
+
+    // Add the linked group as a new tab
+    setOpenGroups(prev => [
+      ...prev,
+      { 
+        id: linkId, 
+        displayName: groupDisplayName,
+        timeframe: { startDate: '', endDate: '' }
+      }
+    ]);
+    setActiveGroupId(linkId);
+  }, [openGroups, fetchGroupData, fetchGroupInfo]);
 
   const handleGroupSelect = useCallback(async (groupId) => {
     const existingGroupIndex = openGroups.findIndex(group => group.id === groupId);
     if (existingGroupIndex !== -1) {
-      setActiveGroupId(groupId);
+      handleTabChange(groupId);
       return;
     }
 
-    const [groupData, groupDisplayName] = await Promise.all([
-      fetchGroupData(groupId),
-      fetchGroupInfo(groupId)
-    ]);
+    try {
+      const [fetchedGroupData, groupDisplayName] = await Promise.all([
+        fetchGroupData(groupId),
+        fetchGroupInfo(groupId)
+      ]);
 
-    setOpenGroups(prev => {
-      const newGroup = { 
-        id: groupId, 
-        displayName: groupDisplayName,
-        timeframe: { startDate: '', endDate: '' }
-      };
-      if (prev.length === 0 || !prev[prev.length - 1].data) {
-        return [...prev.slice(0, -1), newGroup];
-      }
-      return [...prev, newGroup];
-    });
-    setActiveGroupId(groupId);
+      setOpenGroups(prev => {
+        const newGroup = { 
+          id: groupId, 
+          displayName: groupDisplayName,
+          data: fetchedGroupData,
+          timeframe: { startDate: '', endDate: '' }
+        };
+        if (prev.length === 0 || !prev[prev.length - 1].data) {
+          return [...prev.slice(0, -1), newGroup];
+        }
+        return [...prev, newGroup];
+      });
+      setActiveGroupId(groupId);
+    } catch (error) {
+      console.error('Failed to fetch group data:', error);
+    }
   }, [openGroups, fetchGroupData, fetchGroupInfo]);
 
   const handleTimeframeApply = useCallback((startDate, endDate) => {
     if (activeGroupId) {
-      fetchGroupData(activeGroupId, startDate, endDate);
-      setOpenGroups(prev => prev.map(group => 
-        group.id === activeGroupId 
-          ? { ...group, timeframe: { startDate, endDate } }
-          : group
-      ));
+      fetchGroupData(activeGroupId, startDate, endDate).then(fetchedGroupData => {
+        setOpenGroups(prev => prev.map(group => 
+          group.id === activeGroupId 
+            ? { ...group, data: fetchedGroupData, timeframe: { startDate, endDate } }
+            : group
+        ));
+      });
     }
   }, [activeGroupId, fetchGroupData]);
 
+  
   const handleResetTimeframe = useCallback(() => {
     if (activeGroupId) {
-      fetchGroupData(activeGroupId, '', '');
-      setOpenGroups(prev => prev.map(group => 
-        group.id === activeGroupId 
-          ? { ...group, timeframe: { startDate: '', endDate: '' } }
-          : group
-      ));
+      fetchGroupData(activeGroupId, '', '').then(fetchedGroupData => {
+        setOpenGroups(prev => prev.map(group => 
+          group.id === activeGroupId 
+            ? { ...group, data: fetchedGroupData, timeframe: { startDate: '', endDate: '' } }
+            : group
+        ));
+      });
     }
   }, [activeGroupId, fetchGroupData]);
+
 
   const handleAddNewTab = useCallback(() => {
     const newTabId = `New Tab ${nextTabId}`;
@@ -114,6 +149,19 @@ function App() {
     setSelectedNode(node);
   }, []);
 
+  const handleTabChange = useCallback(async (tabId) => {
+    const group = openGroups.find(g => g.id === tabId);
+    if (group) {
+      // Fetch the latest data for the group, using its stored timeframe
+      const updatedGroupData = await fetchGroupData(tabId, group.timeframe.startDate, group.timeframe.endDate);
+      setOpenGroups(prev => prev.map(g => 
+        g.id === tabId ? { ...g, data: updatedGroupData } : g
+      ));
+    }
+    setActiveGroupId(tabId);
+  }, [openGroups, fetchGroupData]);
+
+
   const activeGroup = openGroups.find(group => group.id === activeGroupId);
 
   return (
@@ -125,7 +173,7 @@ function App() {
         <TabNavigation 
           openGroups={openGroups}
           activeGroupId={activeGroupId}
-          onTabChange={setActiveGroupId}
+          onTabChange={handleTabChange}
           onCloseTab={handleCloseGroup}
           onAddNewTab={handleAddNewTab}
         />
@@ -150,27 +198,28 @@ function App() {
             
             <div className="visualization-container">
             <TimeframeSelector
-              startDate={activeGroup.timeframe.startDate}
-              endDate={activeGroup.timeframe.endDate}
-              onStartDateChange={(date) => setOpenGroups(prev => prev.map(group => 
-                group.id === activeGroupId 
-                  ? { ...group, timeframe: { ...group.timeframe, startDate: date } }
-                  : group
-              ))}
-              onEndDateChange={(date) => setOpenGroups(prev => prev.map(group => 
-                group.id === activeGroupId 
-                  ? { ...group, timeframe: { ...group.timeframe, endDate: date } }
-                  : group
-              ))}
-              onApplyFilter={() => handleTimeframeApply(activeGroup.timeframe.startDate, activeGroup.timeframe.endDate)}
-              onResetTimeframe={handleResetTimeframe}
-            />
+                startDate={activeGroup.timeframe.startDate}
+                endDate={activeGroup.timeframe.endDate}
+                onStartDateChange={(date) => setOpenGroups(prev => prev.map(group => 
+                  group.id === activeGroupId 
+                    ? { ...group, timeframe: { ...group.timeframe, startDate: date } }
+                    : group
+                ))}
+                onEndDateChange={(date) => setOpenGroups(prev => prev.map(group => 
+                  group.id === activeGroupId 
+                    ? { ...group, timeframe: { ...group.timeframe, endDate: date } }
+                    : group
+                ))}
+                onApplyFilter={() => handleTimeframeApply(activeGroup.timeframe.startDate, activeGroup.timeframe.endDate)}
+                onResetTimeframe={handleResetTimeframe}
+              />
               <GraphVisualization 
                 graphData={groupData.graphData}
                 onNodeDoubleClick={handleNodeDoubleClick}
+                onLinkClick={handleLinkedGroupOpen}
               />
             </div>
-            <ToolBar />
+            {/* <ToolBar /> */}
             <EntityDetails groupData={groupData} />
           </div>
         ) : (

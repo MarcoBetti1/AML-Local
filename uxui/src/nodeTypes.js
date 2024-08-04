@@ -13,53 +13,73 @@ const nodeIcons = {
 };
 
 const BaseNode = ({ type, data, isConnectable }) => (
-  <div
-    style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      position: 'relative',
-    }}
-  >
-    <Handle type="target" position={Position.Top} isConnectable={isConnectable} style={{ background: '#555' }} />
-    <img 
-      src={process.env.PUBLIC_URL + nodeIcons[type]} 
-      alt={type} 
-      
-      style={{ width: '30px', height: '30px' }} 
-    />
-    <div style={{ 
-      fontSize: '12px', 
-      marginTop: '5px', 
-      textAlign: 'center',
-      maxWidth: '80px',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-    }}>
-      {data.displayName}
-    </div>
-    {(type === 'Customer') && (
-      <div style={{
-        position: 'absolute',
-        top: '-3px',
-        right: '-3px',
-        background: '#06F27B',
-        color: 'white',
-        borderRadius: '50%',
-        width: '9px',
-        height: '9px',
+    <div
+      style={{
         display: 'flex',
-        justifyContent: 'center',
+        flexDirection: 'column',
         alignItems: 'center',
-        fontSize: '12px',
+        position: 'relative',
+      }}
+    >
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} style={{ background: '#555' }} />
+      <img 
+        src={process.env.PUBLIC_URL + nodeIcons[type]} 
+        alt={type} 
+        style={{ width: '30px', height: '30px' }} 
+      />
+      <div style={{ 
+        fontSize: '12px', 
+        marginTop: '5px', 
+        textAlign: 'center',
+        maxWidth: '80px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
       }}>
-        {data.connections}
+        {data.displayName}
       </div>
-    )}
-    <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} style={{ background: '#555' }} />
-  </div>
-);
+      {data.onLinkClick && (
+        <button
+          onClick={data.onLinkClick}
+          style={{
+            position: 'absolute',
+            top: '-5px',
+            right: '-5px',
+            background: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            width: '20px',
+            height: '20px',
+            fontSize: '12px',
+            cursor: 'pointer',
+          }}
+        >
+          ↗
+        </button>
+      )}
+      {(type === 'Customer') && (
+        <div style={{
+          position: 'absolute',
+          top: '-3px',
+          right: '-3px',
+          background: '#06F27B',
+          color: 'white',
+          borderRadius: '50%',
+          width: '9px',
+          height: '9px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          fontSize: '12px',
+        }}>
+          {data.connections}
+        </div>
+      )}
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} style={{ background: '#555' }} />
+    </div>
+  );
+  
 
 const nodeTypes = {
   Customer: (props) => <BaseNode {...props} type="Customer" />,

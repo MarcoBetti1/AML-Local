@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './SearchPanel.css'
 
 function SearchPanel({ allGroups, displayGroups, onGroupSelect, selectedGroup, onSearch }) {
   const [searchTerm, setSearchTerm] = useState('');
