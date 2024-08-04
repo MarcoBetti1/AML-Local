@@ -216,7 +216,6 @@ const generateGraphData = (entities, transactions) => {
       let groupData = await readGroupData(`${groupId}.csv`);
       
       // Apply timeframe filter
-      console.log(typeof(startDate),endDate)
       groupData = filterByTimeframe(groupData, startDate, endDate);
   
       const entities = {};
@@ -265,6 +264,7 @@ const generateGraphData = (entities, transactions) => {
       res.status(500).json({ error: 'Failed to generate group data', details: error.message });
     }
   });
+  
 
 app.get('/api/groups', (req, res) => {
   fs.readdir(HISTORY_DIR, (err, files) => {
@@ -277,7 +277,6 @@ app.get('/api/groups', (req, res) => {
     }
   });
 });
-
 
 app.get('/api/search', async (req, res) => {
     const searchTerm = req.query.term.toLowerCase();
@@ -331,7 +330,40 @@ app.get('/api/search', async (req, res) => {
       res.status(500).json({ error: 'Failed to perform search' });
     }
   });
-
+  app.get('/api/group-info/:id', async (req, res) => {
+    const groupId = req.params.id;
+    const filePath = path.join(HISTORY_DIR, `${groupId}.csv`);
+  
+    try {
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const rows = await new Promise((resolve, reject) => {
+        const results = [];
+        Readable.from(fileContent)
+          .pipe(csv())
+          .on('data', (data) => results.push(data))
+          .on('end', () => resolve(results))
+          .on('error', (error) => reject(error));
+      });
+      console.log(rows)
+      if (rows.length >= 1) {
+        console.log("Success")
+        // Get the first non-header row
+        const firstDataRow = rows[0];
+        const values = Object.values(firstDataRow);
+        const firstValue = values[0].trim();
+        const secondValue = values[1].trim();
+        // Concatenate the first two values
+        const displayValue = `${firstValue} ${secondValue}`;
+        res.json({ groupId, displayValue });
+      } else {
+        // If there's no data, return the group ID as the display value
+        res.json({ groupId, displayValue: groupId });
+      }
+    } catch (error) {
+      console.error(`Error reading file for group ${groupId}:`, error);
+      res.status(500).json({ error: `Failed to fetch group info for ${groupId}` });
+    }
+  });
   
 app.listen(port, () => {
   console.log(`Backend server running on http://localhost:${port}`);

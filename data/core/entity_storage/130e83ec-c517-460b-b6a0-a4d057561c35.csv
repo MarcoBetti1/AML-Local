@@ -1,0 +1,3 @@
+Type,ID,Transaction,Template:Compound_info,Link
+Customer,829649322874772577,NA_10/27/13-17:6_receive_167801228851180003_89.31,FirstName_LastName_Email_Zipcode_PhoneNumber_DriversLicense_Address:Huck_Russell_Russell.qlHuck@edu.university.com_14103_7187876334_346996634_9275-Pine St-Newport
+Counter-Party,167801228851180003,NA_10/27/13-17:6_send_829649322874772577_89.31,FirstName_LastName_Email_Zipcode_PhoneNumber_DriversLicense_Address:Mercer_Ramirez_Ramirez.a3Mercer@aol.com_21312_2128981125_590508060_7799-Main Ln-Franklin,e182fd62-fe29-422e-9dad-ee797382fe7c

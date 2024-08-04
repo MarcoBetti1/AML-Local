@@ -39,6 +39,8 @@ function App() {
   const [displayGroups, setDisplayGroups] = useState([]);
   const [timeframe, setTimeframe] = useState({ startDate: '', endDate: '' });
   const [appliedTimeframe, setAppliedTimeframe] = useState({ startDate: '', endDate: '' });
+  const [nextTabId, setNextTabId] = useState(1);
+  const [groupInfo, setGroupInfo] = useState({});
 
 
   const handleNodeChanges = useCallback((changes, groupId) => {
@@ -48,6 +50,31 @@ function App() {
         : group
     ));
   }, []);
+
+  const fetchGroupInfo = useCallback(async (groupId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/group-info/${groupId}`);
+      
+      if (!response.ok) throw new Error('Failed to fetch group info');
+      const data = await response.json();
+      setGroupInfo(prevInfo => ({
+        ...prevInfo,
+        [groupId]: data.displayValue
+      }));
+      return data.displayValue;
+    } catch (error) {
+      console.error('Error fetching group info:', error);
+      return groupId; // Fallback to using the group ID if fetch fails
+    }
+  }, []);
+
+  const updateTabName = useCallback(async (groupId) => {
+    const displayName = await fetchGroupInfo(groupId);
+    setOpenGroups(prev => prev.map(group => 
+      group.id === groupId ? { ...group, displayName } : group
+    ));
+    return displayName;
+  }, [fetchGroupInfo]);
 
   const handleSearch = useCallback(async (searchTerm) => {
     if (!searchTerm) {
@@ -88,63 +115,171 @@ function App() {
     try {
       const response = await fetch(`${API_BASE_URL}/groups`);
       const data = await response.json();
-      const groups = Array.isArray(data) ? data : [];
-      setAllGroups(groups);
-      setDisplayGroups(groups.map(group => ({ group, displayValue: group }))); // Initialize displayGroups
+      setAllGroups(data);
+      setDisplayGroups(data); // The data is already in the correct format
     } catch (error) {
       console.error('Failed to fetch all groups:', error);
       setError('Failed to fetch groups. Please try again later.');
     }
   };
 
-  const handleGroupSelect = useCallback(async (groupId) => {
-    setIsLoading(true);
-    setError(null);
+  const renderGraph = useCallback(async (groupId, startDate, endDate) => {
     try {
-      const queryParams = new URLSearchParams({
-        startDate: timeframe.startDate,
-        endDate: timeframe.endDate
-      }).toString();
-      const response = await fetch(`${API_BASE_URL}/groups/${groupId}/data?${queryParams}`);
-      const data = await response.json();
-      
-      if (data.graphData && Array.isArray(data.graphData.nodes) && Array.isArray(data.graphData.edges)) {
-        const newNodes = data.graphData.nodes.map(node => ({
+      const response = await fetch(`${API_BASE_URL}/groups/${groupId}/data?${new URLSearchParams({
+        startDate,
+        endDate
+      })}`);
+      const groupData = await response.json();
+
+      if (groupData.graphData && Array.isArray(groupData.graphData.nodes) && Array.isArray(groupData.graphData.edges)) {
+        const newNodes = groupData.graphData.nodes.map(node => ({
           ...node,
           position: getInitialNodePosition(node.type),
         }));
 
-        const newEdges = data.graphData.edges.map(edge => ({
+        const newEdges = groupData.graphData.edges.map(edge => ({
           ...edge,
           type: 'smoothstep',
           animated: true,
           style: { stroke: '#888' },
         }));
 
-        setOpenGroups(prev => {
-          const groupIndex = prev.findIndex(group => group.id === groupId);
-          if (groupIndex !== -1) {
-            // Update existing group
-            const updatedGroups = [...prev];
-            updatedGroups[groupIndex] = { id: groupId, data, nodes: newNodes, edges: newEdges };
-            return updatedGroups;
-          } else {
-            // Add new group
-            return [...prev, { id: groupId, data, nodes: newNodes, edges: newEdges }];
-          }
-        });
-        setActiveGroupId(groupId);
+        return { groupData, newNodes, newEdges };
       } else {
-        console.error('Unexpected data structure:', data);
-        setError('Received unexpected data structure from the server.');
+        throw new Error('Unexpected data structure received from server');
       }
+    } catch (error) {
+      console.error('Failed to render graph:', error);
+      throw error;
+    }
+  }, []);
+
+  const handleGroupSelect = useCallback(async (groupId) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Check if the group is already open in a tab
+      const existingTabIndex = openGroups.findIndex(group => group.id === groupId);
+      if (existingTabIndex !== -1) {
+        // If the group is already open, just switch to that tab
+        setActiveGroupId(groupId);
+        setIsLoading(false);
+        return;
+      }
+  
+      const [{ groupData, newNodes, newEdges }, groupDisplayName] = await Promise.all([
+        renderGraph(groupId, '', ''),
+        fetchGroupInfo(groupId)
+      ]);
+  
+      const newGroup = { 
+        id: groupId, 
+        displayName: groupDisplayName, 
+        data: groupData, 
+        nodes: newNodes, 
+        edges: newEdges,
+        timeframe: { startDate: '', endDate: '' }
+      };
+  
+      setOpenGroups(prev => {
+        // If there are no open groups, create a new tab
+        if (prev.length === 0) {
+          return [newGroup];
+        }
+        
+        // Find the current active tab
+        const activeTabIndex = prev.findIndex(group => group.id === activeGroupId);
+        
+        // If the active tab is empty (data is null), replace it
+        if (activeTabIndex !== -1 && !prev[activeTabIndex].data) {
+          return prev.map((group, index) => 
+            index === activeTabIndex ? newGroup : group
+          );
+        }
+        
+        // Otherwise, update the current tab
+        return prev.map(group => 
+          group.id === activeGroupId ? newGroup : group
+        );
+      });
+      setActiveGroupId(groupId);
     } catch (error) {
       console.error('Failed to fetch group data:', error);
       setError('Failed to fetch group data. Please try again later.');
     } finally {
       setIsLoading(false);
     }
-  }, [timeframe]);
+  }, [openGroups, activeGroupId, renderGraph, fetchGroupInfo]);
+
+  const applyTimeframeFilter = useCallback(async (startDate, endDate) => {
+    if (activeGroupId) {
+      setIsLoading(true);
+      try {
+        const { groupData, newNodes, newEdges } = await renderGraph(activeGroupId, startDate, endDate);
+        
+        setOpenGroups(prev => prev.map(group => 
+          group.id === activeGroupId 
+            ? { 
+                ...group, 
+                data: groupData, 
+                nodes: newNodes, 
+                edges: newEdges, 
+                timeframe: { startDate, endDate }
+              }
+            : group
+        ));
+      } catch (error) {
+        console.error('Failed to apply timeframe filter:', error);
+        setError('Failed to apply timeframe filter. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [activeGroupId, renderGraph]);
+
+  const handleResetTimeframe = useCallback(async () => {
+    if (activeGroupId) {
+      setIsLoading(true);
+      try {
+        const { groupData, newNodes, newEdges } = await renderGraph(activeGroupId, '', '');
+        
+        setOpenGroups(prev => prev.map(group => 
+          group.id === activeGroupId 
+            ? { 
+                ...group, 
+                data: groupData, 
+                nodes: newNodes, 
+                edges: newEdges, 
+                timeframe: { startDate: '', endDate: '' }
+              }
+            : group
+        ));
+      } catch (error) {
+        console.error('Failed to reset timeframe:', error);
+        setError('Failed to reset timeframe. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [activeGroupId, renderGraph]);
+
+  const handleTabChange = useCallback((tabId) => {
+    setActiveGroupId(tabId);
+  }, []);
+
+  const handleAddNewTab = useCallback(() => {
+    const newTabId = `New Tab ${nextTabId}`;
+    setOpenGroups(prev => [...prev, { 
+      id: newTabId, 
+      displayName: newTabId, 
+      data: null, 
+      nodes: [], 
+      edges: [],
+      timeframe: { startDate: '', endDate: '' }
+    }]);
+    setActiveGroupId(newTabId);
+    setNextTabId(prev => prev + 1);
+  }, [nextTabId]);
 
   const handleCloseGroup = useCallback((groupId) => {
     setOpenGroups(prev => prev.filter(group => group.id !== groupId));
@@ -153,6 +288,7 @@ function App() {
     }
   }, [activeGroupId, openGroups]);
 
+  
   const getInitialNodePosition = (type) => {
     const centerX = 250;
     const centerY = 250;
@@ -178,12 +314,7 @@ function App() {
     setSelectedNode(node);
   }, []);
 
-  const applyTimeframeFilter = async () => {
 
-    if (activeGroupId) {
-      await handleGroupSelect(activeGroupId);
-    }
-  };
   
   const activeGroup = openGroups.find(group => group.id === activeGroupId);
   
@@ -193,17 +324,18 @@ function App() {
         <div className="app-icon-container">
           <img src="icons/GTIcon.png" alt="Entity Resolution" className="app-icon" />
         </div>
+        <TabNavigation 
+        openGroups={openGroups}
+        activeGroupId={activeGroupId}
+        onTabChange={handleTabChange}
+        onCloseTab={handleCloseGroup}
+        onAddNewTab={handleAddNewTab}
+      />
         <div className="header-icons">
           <UserIcon />
           <MenuIcon />
         </div>
       </header>
-      <TabNavigation 
-        openGroups={openGroups}
-        activeGroupId={activeGroupId}
-        onTabChange={setActiveGroupId}
-        onCloseTab={handleCloseGroup}
-      />
       <div className="app-content">
       <SearchPanel 
         displayGroups={displayGroups}
@@ -218,12 +350,25 @@ function App() {
         ) : activeGroup ? (
           <div className="active-group-content">
             <div className="timeframe-selector-container">
-              <TimeframeSelector
-                startDate={timeframe.startDate}
-                endDate={timeframe.endDate}
-                onStartDateChange={(date) => setTimeframe(prev => ({ ...prev, startDate: date }))}
-                onEndDateChange={(date) => setTimeframe(prev => ({ ...prev, endDate: date }))}
-                onApplyFilter={applyTimeframeFilter}
+            <TimeframeSelector
+                startDate={activeGroup.timeframe.startDate}
+                endDate={activeGroup.timeframe.endDate}
+                onStartDateChange={(date) => {
+                  setOpenGroups(prev => prev.map(group => 
+                    group.id === activeGroupId 
+                      ? { ...group, timeframe: { ...group.timeframe, startDate: date } }
+                      : group
+                  ));
+                }}
+                onEndDateChange={(date) => {
+                  setOpenGroups(prev => prev.map(group => 
+                    group.id === activeGroupId 
+                      ? { ...group, timeframe: { ...group.timeframe, endDate: date } }
+                      : group
+                  ));
+                }}
+                onApplyFilter={() => applyTimeframeFilter(activeGroup.timeframe.startDate, activeGroup.timeframe.endDate)}
+                onResetTimeframe={handleResetTimeframe}
               />
             </div>
             <div className="visualization-container">

@@ -7,7 +7,7 @@ import csv
 from collections import defaultdict
 import numpy as np
 from datetime import date
-
+import shutil
 
 # Load configurations
 config_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config')
@@ -141,4 +141,23 @@ def get_entity_info(entity_id):
 def save_groups(grouped_entities):
     for group_id, group_data in grouped_entities.items():
         save_entity_file(group_id, group_data)
+
+def clear_data():
+    # Define the paths to the two folders
+
+    folders = [data_config['entity_storage_path'],data_config['entity_data_storage_path']]
+    # Check if the folder exists
+    for folder in folders:
+        if os.path.exists(folder):
+            # Delete the contents of the folder
+            for filename in os.listdir(folder):
+                file_path = os.path.join(folder, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print(f'Failed to delete {file_path}. Reason: {e}')
+
 

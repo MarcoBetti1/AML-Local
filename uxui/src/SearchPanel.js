@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
-function SearchPanel({ displayGroups, onGroupSelect, selectedGroup, onSearch }) {
+function SearchPanel({ allGroups, displayGroups, onGroupSelect, selectedGroup, onSearch }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      onSearch(searchTerm);
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
+    console.log('SearchPanel useEffect triggered');
+    console.log('searchTerm:', searchTerm);
+    console.log('displayGroups:', displayGroups);
+    onSearch(searchTerm);
   }, [searchTerm, onSearch]);
 
   const toggleCollapse = () => {
@@ -28,11 +27,13 @@ function SearchPanel({ displayGroups, onGroupSelect, selectedGroup, onSearch }) 
             type="text"
             placeholder="Search..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+            }}
             className="search-input"
           />
           <div className="group-list">
-            {displayGroups && displayGroups.map(({ group, displayValue }) => (
+            {displayGroups.map(({ group, displayValue }) => (
               <div
                 key={group}
                 onClick={() => onGroupSelect(group)}

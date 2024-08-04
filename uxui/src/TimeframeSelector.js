@@ -1,24 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 
-const TimeframeSelector = ({ startDate, endDate, onStartDateChange, onEndDateChange, onApplyFilter }) => {
-  const [isReset, setIsReset] = useState(false);
-
-  const handleApplyFilter = useCallback(() => {
-    onApplyFilter();
-  }, [onApplyFilter]);
-
+const TimeframeSelector = ({ startDate, endDate, onStartDateChange, onEndDateChange, onApplyFilter, onResetTimeframe }) => {
   const handleReset = () => {
     onStartDateChange('');
     onEndDateChange('');
-    setIsReset(true);
+    onResetTimeframe();
   };
-
-  useEffect(() => {
-    if (isReset) {
-      handleApplyFilter();
-      setIsReset(false);
-    }
-  }, [isReset, handleApplyFilter]);
 
   return (
     <div className="timeframe-selector">
@@ -38,7 +25,7 @@ const TimeframeSelector = ({ startDate, endDate, onStartDateChange, onEndDateCha
           onChange={(e) => onEndDateChange(e.target.value)}
         />
       </label>
-      <button onClick={handleApplyFilter}>Apply</button>
+      <button onClick={onApplyFilter}>Apply</button>
       <button onClick={handleReset}>Reset</button>
     </div>
   );

@@ -6,6 +6,7 @@
 }
 
 .app-header {
+    height: 6%;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -25,13 +26,13 @@
 }
 
 .header-icon, .app-icon {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     cursor: pointer;
 }
 
 .app-icon {
-    height: 40px;
+    height: 30px;
     width: auto;
     object-fit: contain;
 }
@@ -272,24 +273,30 @@
     content: none;
   }
   
-  /* Tab Navigation */
+  /* Tab Navigation
   .tab-navigation {
+    margin-left: 20px;
+    height: 160%;
+    width: 100%;
     display: flex;
-    background-color: #f0f0f0;
-    border-bottom: 1px solid #ccc;
-  }
+    background-color: #041F41;
+  } */
   
-  .tab {
+  /* .tab {
+    text-align: left;
+  display: inline-block;
     padding: 10px 20px;
     cursor: pointer;
-    border-right: 1px solid #ccc;
+    border-right: 1px solid #605E63;
+    border-bottom: 1px solid #605E63;
     display: flex;
     align-items: center;
   }
-  
-  .tab.active {
-    background-color: #fff;
-    border-bottom: 2px solid #041F41;
+   */
+  /* .tab.active {
+    background-color: #041F41;
+    border-bottom: 2px solid #06F27B;
+    border-left: 2px solid #06F27B;
   }
   
   .tab button {
@@ -297,12 +304,12 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 20px;
   }
   
   .tab button:hover {
     color: #f00;
-  }
+  } */
   
   /* Active Group Content */
   .active-group-content {
