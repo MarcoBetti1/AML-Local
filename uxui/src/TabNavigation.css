@@ -40,7 +40,7 @@
     align-items: center;
     padding: 10px 15px;
     background-color: #B9BBC5;
-    border-right: 1px solid #ccc;
+    /* border-right: 1px solid #ccc; */
     cursor: pointer;
     white-space: nowrap;
     transition: background-color 0.3s;

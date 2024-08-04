@@ -119,6 +119,7 @@ def generate_transaction(location,daytime,sender_id, receiver_id, transaction_ty
         elif transaction_type == 'billPay':
             return f"{location}_{daytime}_billPay_{receiver_id}_{amount:.2f}"
         
+        
 def generate_random_date(start_year=1900, end_year=2100):
     # Generate a random year, month, and day
     year = random.randint(start_year, end_year)
