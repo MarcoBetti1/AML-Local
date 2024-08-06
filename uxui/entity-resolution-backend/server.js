@@ -41,7 +41,8 @@ const HISTORY_DIR='/Users/m0b0yxy/Desktop/V1.2/data/core/entity_data_storage'
             };
           }
           break;
-        case 'billPay':
+        case 'billPayed':
+        case 'billPay' :
           if (rest.length >= 2) {
             return {
               ...baseInfo,
@@ -58,6 +59,14 @@ const HISTORY_DIR='/Users/m0b0yxy/Desktop/V1.2/data/core/entity_data_storage'
             };
           }
           break;
+        case 'ownBusiness':
+            if (rest.length >= 2){
+                return{
+                    ...baseInfo,
+                    businessId: rest[0],
+                    memo: rest[1]
+                }
+            }
       }
     }
   
@@ -159,7 +168,7 @@ const filterByTimeframe = (data, startDate, endDate) => {
   
       if (entity.type === 'Customer') {
         entity.transactions.forEach(transaction => {
-          const { type, targetId, businessId, amount } = transaction;
+          const { type, targetId, businessId, amount} = transaction;
           switch (type) {
             case 'send':
             case 'receive':
@@ -178,17 +187,34 @@ const filterByTimeframe = (data, startDate, endDate) => {
               addNode(billPayNodeId, 'BillPay', {
                 label: 'Bill Pay',
                 info: transaction,
-                displayName: `$${amount}`
+                displayName: `$${amount}`,
               });
               addEdge(entity.id, billPayNodeId, 'transaction');
               addEdge(businessId, billPayNodeId, 'transaction');
               addNode(businessId, 'Business', {
                 label: 'Business',
                 info: { id: businessId },
-                displayName: `Business ${businessId}`
+                displayName: `Business ${businessId}`,
+                // link:link
               });
-
               break;
+            case 'ownBusiness':
+              const businessNodeId = `${entity.id}-ownBusiness-${businessId}`;
+              addNode(businessNodeId, 'ownBusiness', {
+                label: 'owns',
+                info: transaction,
+                displayName: `Owns`,
+                memo: `${amount}`
+            });
+              addEdge(entity.id, businessNodeId, 'owns');
+              addEdge(businessId, businessNodeId, 'business');
+              addNode(businessId, 'Business', {
+                label: 'Business',
+                info: { id: businessId },
+                displayName: `Business ${businessId}`
+            });
+
+            break;
             case 'buyGiftCard':
               const giftCardNodeId = `${entity.id}-buyGiftCard-${transaction.timestamp}`;
               addNode(giftCardNodeId, 'GiftCard', {
@@ -201,6 +227,25 @@ const filterByTimeframe = (data, startDate, endDate) => {
           }
         });
       }
+      else if (entity.type === 'Counter-Party')
+        {
+            entity.transactions.forEach(transaction => {
+            const { type, targetId, businessId, amount } = transaction;
+            switch(type){
+                
+                case 'billPayed':
+                const billPayedNodeId = `${entity.id}-billPayed-${businessId}`;
+                addNode(billPayedNodeId, 'BillPay', {
+                  label: 'Bill Pay',
+                  info: transaction,
+                  displayName: `$${amount}`
+                });
+                addEdge(entity.id, billPayedNodeId, 'transaction');
+                addEdge(businessId, billPayedNodeId, 'transaction');
+                break;
+            }
+        });
+        }
     });
   
     return {
@@ -238,13 +283,13 @@ const filterByTimeframe = (data, startDate, endDate) => {
         if (entry.transaction) {
           const parsedTransaction = parseTransaction(entry.transaction);
           if (parsedTransaction) {
-            if (entry.type === 'Customer') {
-              transactions.push({
-                ...parsedTransaction,
-                entityId: entry.id
-              });
-              entities[entry.id].transactions.push(parsedTransaction);
-            }
+            //if (entry.type === 'Customer') {
+            transactions.push({
+            ...parsedTransaction,
+            entityId: entry.id
+            });
+            entities[entry.id].transactions.push(parsedTransaction);
+            //}
           }
         }
       });

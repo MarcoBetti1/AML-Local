@@ -55,7 +55,6 @@ def generate_data(num_records):
         records = []
         for _ in range(num_records):
             customer = generate_customer_record(names, zip_codes, phone_numbers, drivers_licenses, addresses)
-            #print(customer)
 
             customer['Type'] = 'Customer'
             num_transactions = random.randint(2, 7)
@@ -68,7 +67,7 @@ def generate_data(num_records):
                 location = 'NA'
                 if random.randint(0,1)==1:
                     location = generate_random_coordinates()
-                    
+
                 daytime = f'{generate_random_date()}-{random_time()}'
 
                 if transaction_type in ['send', 'receive']:
@@ -100,11 +99,47 @@ def generate_data(num_records):
                     records.append(gift_card_record)
 
                 elif transaction_type == 'billPay':
-                    
                     business_id = random.randint(10000,99999)
                     bill_pay_record = customer.copy()
                     bill_pay_record['Transaction'] = generate_transaction(location,daytime,customer['ID'], business_id, 'billPay', amount)
                     records.append(bill_pay_record)
+
+                    bill_pay_receive = customer.copy()
+                    bill_pay_receive['Type'] = 'Counter-Party'
+                    bill_pay_receive['Transaction'] = generate_transaction(location,daytime,customer['ID'], business_id, 'billPayed', amount)
+                    records.append(bill_pay_receive)
+
+                    flocation = generate_random_coordinates()
+                    fdaytime = f'{generate_random_date()}-{random_time()}'
+
+
+                    founderinfo = generate_customer_record(names, zip_codes, phone_numbers, drivers_licenses, addresses)
+                    founder = founderinfo.copy()
+                    memo = "'To do legal business'"
+                    founder['Type'] = 'Customer'
+                    founder['Transaction'] = generate_transaction(flocation,fdaytime,founder['ID'], business_id, 'ownBusiness', memo)
+
+                    business = {'Type': 'Business' ,'ID':business_id, 'Transaction':generate_transaction(flocation,fdaytime,business_id, founder['ID'], 'ownBusiness', memo),'Template:Compound_info': 'test:test','Link':'None'}
+                    #print(business)
+                    records.append(business)
+
+                    for i in range(random.randint(1,4)):
+                        tlocation = generate_random_coordinates()
+                        tdaytime = f'{generate_random_date()}-{random_time()}'
+                        additional = generate_customer_record(names, zip_codes, phone_numbers, drivers_licenses, addresses)
+                        
+                        bill_pay_record2 = additional.copy()
+                        bill_pay_record2['Type'] = "Customer"
+                        bill_pay_record2['Transaction'] = generate_transaction(tlocation,tdaytime,bill_pay_record2['ID'], business_id, 'billPay', amount)
+                        records.append(bill_pay_record2)
+
+                        bill_pay_record2 = additional.copy()
+                        bill_pay_record2['Type'] = "Counter-party"
+                        bill_pay_record2['Transaction'] = generate_transaction(tlocation,tdaytime,bill_pay_record2['ID'], business_id, 'billPayed', amount)
+                        records.append(bill_pay_record2)
+
+                    records.append(founder)
+
 
         return records
 
@@ -122,7 +157,12 @@ def generate_transaction(location,daytime,sender_id, receiver_id, transaction_ty
             return f"{location}_{daytime}_buyGiftCard_{amount:.2f}"
         elif transaction_type == 'billPay':
             return f"{location}_{daytime}_billPay_{receiver_id}_{amount:.2f}"
-        
+        elif transaction_type == 'billPayed':
+            return f"{location}_{daytime}_billPayed_{receiver_id}_{amount:.2f}"
+        elif transaction_type == 'ownBusiness':
+            return f"{location}_{daytime}_ownBusiness_{receiver_id}_{amount}"   
+        elif transaction_type == 'ownedBy':
+            return f"{location}_{daytime}_ownedBy_{receiver_id}_{amount}"   
         
 def generate_random_date(start_year=1900, end_year=2100):
     # Generate a random year, month, and day
