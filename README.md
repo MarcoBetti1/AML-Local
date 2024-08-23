@@ -3,6 +3,7 @@ This is an entity resolution app. It has a frontent web made with node.js. First
 
 `run.py` will start the web application
 
+  I will work on improving this once I have some time.
 
 ## Bugs and improvements
 - Business link is on the customer not the business
